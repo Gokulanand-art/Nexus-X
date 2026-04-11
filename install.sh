@@ -9,6 +9,9 @@ set -e
 
 REPO="https://github.com/Gokulanand-art/nexus-x"
 INSTALL_DIR="$HOME/.nexus"
+
+# Clean up any previous failed install
+rm -rf "$INSTALL_DIR" 2>/dev/null || true
 BIN_PATH="/usr/local/bin/nexus"
 
 # ─── Colors ──────────────────────────────────────────────────────────────────
@@ -119,6 +122,9 @@ log "Starting Ollama service..."
 if ! pgrep -x "ollama" &>/dev/null; then
     ollama serve &>/dev/null &
     sleep 3
+
+# Remove stale nexus launcher if exists
+rm -f /usr/local/bin/nexus 2>/dev/null || true
 fi
 
 log "Pulling Phi-3 Mini model (~2.3GB — only needed once)..."

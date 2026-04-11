@@ -8,6 +8,9 @@ $ErrorActionPreference = "Stop"
 
 $REPO       = "https://github.com/Gokulanand-art/nexus-x"
 $INSTALL_DIR = "$env:USERPROFILE\.nexus"
+
+# Clean up any previous failed install
+if (Test-Path $INSTALL_DIR) { Remove-Item -Recurse -Force $INSTALL_DIR }
 $NEXUS_BAT  = "$env:USERPROFILE\AppData\Local\Microsoft\WindowsApps\nexus.bat"
 
 # ─── Colors ──────────────────────────────────────────────────────────────────
