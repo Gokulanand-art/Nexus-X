@@ -12,7 +12,7 @@ INSTALL_DIR="$HOME/.nexus"
 
 # Clean up any previous failed install
 rm -rf "$INSTALL_DIR" 2>/dev/null || true
-BIN_PATH="/usr/local/bin/nexus"
+BIN_PATH="$HOME/.local/bin/nexus"
 
 # ─── Colors ──────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -186,8 +186,10 @@ LAUNCHER
 
 chmod +x /tmp/nexus_launcher
 
-# Try to install to /usr/local/bin, fallback to ~/.local/bin
-if sudo mv /tmp/nexus_launcher "$BIN_PATH" 2>/dev/null; then
+# Install to ~/.local/bin
+mkdir -p "$HOME/.local/bin"
+mv /tmp/nexus_launcher "$BIN_PATH"
+if true; then
     success "Installed: nexus → $BIN_PATH"
 else
     mkdir -p "$HOME/.local/bin"
