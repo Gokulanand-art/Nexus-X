@@ -1,12 +1,12 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #  Nexus X — One-command installer for Windows (PowerShell)
 #  Usage (run in PowerShell as Administrator):
-#    irm https://raw.githubusercontent.com/Gokulanand-art/nexus-code/main/install.ps1 | iex
+#    irm https://raw.githubusercontent.com/Gokulanand-art/nexus-x/main/install.ps1 | iex
 # ─────────────────────────────────────────────────────────────────────────────
 
 $ErrorActionPreference = "Stop"
 
-$REPO       = "https://github.com/Gokulanand-art/nexus-code"
+$REPO       = "https://github.com/Gokulanand-art/nexus-x"
 $INSTALL_DIR = "$env:USERPROFILE\.nexus"
 $NEXUS_BAT  = "$env:USERPROFILE\AppData\Local\Microsoft\WindowsApps\nexus.bat"
 
