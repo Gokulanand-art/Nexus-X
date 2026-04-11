@@ -2,12 +2,12 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #  Nexus X — One-command installer for Linux / macOS
 #  Usage:
-#    curl -fsSL https://raw.githubusercontent.com/Gokulanand-art/nexus-code/main/install.sh | bash
+#    curl -fsSL https://raw.githubusercontent.com/Gokulanand-art/nexus-x/main/install.sh | bash
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -e
 
-REPO="https://github.com/Gokulanand-art/nexus-code"
+REPO="https://github.com/Gokulanand-art/nexus-x"
 INSTALL_DIR="$HOME/.nexus"
 BIN_PATH="/usr/local/bin/nexus"
 
