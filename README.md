@@ -1,31 +1,37 @@
-🚀 Nexus X — Offline AI Coding Assistant
-Built by Gokulanand
+# 🚀 Nexus X — Offline AI Coding Assistant  
+### Built by Gokulanand
 
-Nexus X is a fully offline AI coding assistant that runs 100% on your machine.
+Nexus X is a fully offline AI coding assistant that runs 100% on your machine.  
 No API keys. No subscriptions. No internet after setup.
-✨ Features
 
-    💀 Fully offline after initial install
-    🧠 Autonomous coding agent (/run goal)
-    🔁 Think → Act → Observe loop
-    📚 Vector memory using ChromaDB RAG
-    📂 File ingestion (code, PDFs, images)
-    🛠 Built-in tools:
-        Read files
-        Write files
-        Run shell commands
-        Search directories
-    ❌ Mistake memory system (learns from failures)
-    🧪 Dataset builder for future fine-tuning
-    🧑‍⚖️ Critic scoring system improves outputs
-    🔄 Switchable local models:
-        DeepSeek Coder
-        Phi-3
-        Mistral
-        TinyLlama
+---
 
-⚡ One-Command Install
-Linux / macOS
+## ✨ Features
+
+- 💀 Fully offline after initial install
+- 🧠 Autonomous coding agent (`/run goal`)
+- 🔁 Think → Act → Observe loop
+- 📚 Vector memory using ChromaDB RAG
+- 📂 File ingestion (code, PDFs, images)
+- 🛠 Built-in tools:
+  - Read files
+  - Write files
+  - Run shell commands
+  - Search directories
+- ❌ Mistake memory system (learns from failures)
+- 🧪 Dataset builder for future fine-tuning
+- 🧑‍⚖️ Critic scoring system improves outputs
+- 🔄 Switchable local models:
+  - DeepSeek Coder
+  - Phi-3
+  - Mistral
+  - TinyLlama
+
+---
+
+## ⚡ One-Command Install
+
+### Linux / macOS
 
 curl -fsSL https://raw.githubusercontent.com/Gokulanand-art/nexus-x/main/install.sh | bash
 
@@ -163,4 +169,4 @@ Nexus X is designed for developers who want:
 - Full control over local models
 - Autonomous coding workflows
 
-##Built with passion for offline AI systems 💀
+Built with passion for offline AI systems 💀🚀
