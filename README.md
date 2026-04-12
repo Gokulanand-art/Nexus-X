@@ -46,7 +46,7 @@ nexus
 
 ---
 
-💾 System Requirements
+##💾 System Requirements
 
 Model| Disk Needed| RAM Needed
 phi3 lightweight| 5 GB| 2.5 GB
@@ -56,7 +56,7 @@ tinyllama| 2 GB| 1.5 GB
 
 ---
 
-🧠 Recommended for 8GB RAM Users
+##🧠 Recommended for 8GB RAM Users
 
 Enable swap before running DeepSeek:
 
@@ -71,7 +71,7 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
 ---
 
-🔄 Switch Models
+##🔄 Switch Models
 
 nexus --model deepseek
 nexus --model phi3
@@ -80,7 +80,7 @@ nexus --model tinyllama
 
 ---
 
-🖥 Commands
+##🖥 Commands
 
 Command| Description
 "/help"| Show all commands
@@ -96,7 +96,7 @@ Command| Description
 
 ---
 
-🏗 Architecture
+##🏗 Architecture
 
 Module| Purpose
 model.py| Ollama wrapper + inference
@@ -115,7 +115,7 @@ install.ps1| Windows installer
 
 ---
 
-🔁 How Nexus X Works
+##🔁 How Nexus X Works
 
 User Task
    ↓
@@ -137,7 +137,7 @@ Returns final answer
 
 ---
 
-🌍 Platform Support
+##🌍 Platform Support
 
 Platform| Status
 Arch Linux| ✅ Primary
@@ -149,19 +149,19 @@ Android Proot| ⚠ Tiny models only
 
 ---
 
-🔗 GitHub Repository
+##🔗 GitHub Repository
 
 https://github.com/Gokulanand-art/nexus-x
 
 ---
 
-📜 License
+##📜 License
 
 MIT License — free to use, modify, and distribute.
 
 ---
 
-💬 About Nexus X
+##💬 About Nexus X
 
 Nexus X is designed for developers who want:
 
@@ -170,4 +170,4 @@ Nexus X is designed for developers who want:
 - Full control over local models
 - Autonomous coding workflows
 
-Built with passion for offline AI systems 💀
+##Built with passion for offline AI systems 💀
