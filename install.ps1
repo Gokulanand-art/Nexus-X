@@ -100,8 +100,8 @@ if (-not $ollamaProc) {
     Start-Sleep -Seconds 4
 }
 
-Log "Pulling Phi-3 Mini model (~2.3GB — only needed once)..."
-& ollama pull phi3
+Log "Pulling DeepSeek Coder model (~3.8GB — only needed once)..."
+& ollama pull deepseek-coder:6.7b
 Ok "Model ready"
 
 # ─── 7. Clone / update repo ──────────────────────────────────────────────────

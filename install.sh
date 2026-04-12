@@ -127,8 +127,8 @@ if ! pgrep -x "ollama" &>/dev/null; then
 rm -f /usr/local/bin/nexus 2>/dev/null || true
 fi
 
-log "Pulling Phi-3 Mini model (~2.3GB — only needed once)..."
-ollama pull phi3
+log "Pulling DeepSeek Coder model (~3.8GB — only needed once)..."
+ollama pull deepseek-coder:6.7b
 success "Model ready"
 
 # ─── 6. Clone / update repo ──────────────────────────────────────────────────
