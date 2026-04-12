@@ -18,6 +18,7 @@ import model
 import tools
 from agent import Agent
 from worker import Worker
+import ingestor
 
 
 def parse_args():
@@ -124,6 +125,35 @@ def main():
 
         elif user_input == "/run":
             cli.print_status("Usage: /run <your goal>  e.g. /run build a flask app", style="yellow")
+
+        elif user_input.startswith("/ingest "):
+            path = user_input[8:].strip()
+            if not path:
+                cli.print_status("Usage: /ingest <file or folder>", style="yellow")
+            else:
+                import os
+                if os.path.isdir(path):
+                    result = ingestor.ingest_folder(path)
+                    cli.print_status(f"Ingested {result['files_processed']} files, {result['total_chunks']} chunks stored.", style="green")
+                    if result["errors"]:
+                        for e in result["errors"]:
+                            cli.print_status(f"  error: {e}", style="yellow")
+                else:
+                    result = ingestor.ingest_file(path)
+                    if result["ok"]:
+                        cli.print_status(f"Ingested: {result['source']} → {result['chunks_stored']} chunks stored.", style="green")
+                    else:
+                        cli.print_status(f"Failed: {result.get('error')}", style="red")
+
+        elif user_input == "/memory":
+            import learning
+            s = learning.stats()
+            cli.print_status(f"Vector memory: {s['total_chunks']} chunks stored at {s['db_path']}", style="cyan")
+
+        elif user_input == "/dataset":
+            import dataset
+            s = dataset.stats()
+            cli.print_status(f"Dataset: {s['total_pairs']} training pairs at {s['dataset_path']}", style="cyan")
 
         elif user_input.startswith("/"):
             cli.print_status(f"Unknown command: {user_input}. Type /help.", style="yellow")

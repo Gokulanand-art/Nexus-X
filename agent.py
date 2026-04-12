@@ -13,6 +13,9 @@ import re
 from typing import Optional
 
 import memory
+import dataset
+import critic
+import learning
 import model
 import tools as tool_module
 from tools import ToolResult, TOOL_SCHEMAS
@@ -69,9 +72,13 @@ complete file content here
 If no tool is needed, answer directly in plain text."""
 
 
-def _build_system() -> str:
+def _build_system(user_input: str = "") -> str:
     mistakes = memory.get_mistakes_prompt()
-    return BASE_SYSTEM.format(mistakes_block=mistakes or "")
+    context  = learning.get_context_block(user_input) if user_input else ""
+    block    = "
+
+".join(filter(None, [mistakes, context]))
+    return BASE_SYSTEM.format(mistakes_block=block)
 
 
 # ─── Context trimmer ──────────────────────────────────────────────────────────
@@ -91,8 +98,8 @@ def _trim_history(conversation: list[dict]) -> list[dict]:
     return [first] + recent
 
 
-def _build_messages(conversation: list[dict]) -> list[dict]:
-    system = _build_system()
+def _build_messages(conversation: list[dict], user_input: str = "") -> list[dict]:
+    system = _build_system(user_input)
     trimmed = _trim_history(conversation)
     return [{"role": "system", "content": system}] + trimmed
 
@@ -241,7 +248,7 @@ class Agent:
         for turn in range(MAX_TURNS):
 
             # ── 1. Build messages with trimmed history ────────────────────────
-            messages = _build_messages(self.conversation)
+            messages = _build_messages(self.conversation, user_input)
 
             self.print_fn("\n[nexus] thinking...\n", dim=True)
 
@@ -274,8 +281,13 @@ class Agent:
                 # Final answer — store clean version in history
                 self.conversation.append({
                     "role": "assistant",
-                    "content": full_response[:1000],  # cap to preserve context
+                    "content": full_response[:1000],
                 })
+                # Save to dataset + run critic
+                dataset.save_conversation(user_input, full_response)
+                critique = critic.critique(user_input, full_response)
+                if not critique["passed"]:
+                    self.print_fn(f"\n[critic] score={critique['score']}/10 — {critique['fix'][:80]}\n", dim=True)
                 return
 
             tool_name = tool_call["tool"]

@@ -31,6 +31,9 @@ COMMANDS = {
     "/clear":   "Clear mistake memory",
     "/files":   "List files in current directory",
     "/run":     "Autonomous mode — give a goal, agent works alone",
+    "/ingest":  "Ingest a file or folder into memory: /ingest <path>",
+    "/memory":  "Show vector memory stats",
+    "/dataset": "Show training dataset stats",
     "/help":    "Show this help",
 }
 
