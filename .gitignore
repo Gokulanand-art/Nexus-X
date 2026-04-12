@@ -7,3 +7,5 @@ venv/
 *.egg-info/
 .env
 path/
+.nexus_dataset/
+*.docx
