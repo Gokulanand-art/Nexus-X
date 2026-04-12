@@ -23,10 +23,18 @@ from typing import Iterator
 # ─── Config ──────────────────────────────────────────────────────────────────
 
 OLLAMA_HOST   = "http://localhost:11434"
-DEFAULT_MODEL = "phi3"       # Microsoft Phi-3 Mini — best small coding model
-TIMEOUT       = 45          # seconds before giving up on a slow response
-TEMPERATURE   = 0.2          # low = focused, deterministic code output
-MAX_TOKENS    = 1024
+DEFAULT_MODEL = "deepseek-coder:6.7b"  # best offline coding model
+
+# Switch models with: nexus --model <name>
+AVAILABLE_MODELS = {
+    "deepseek":  "deepseek-coder:6.7b",
+    "phi3":      "phi3",
+    "mistral":   "mistral",
+    "tinyllama": "tinyllama",
+}
+TIMEOUT       = 300         # seconds before giving up
+TEMPERATURE   = 0.2         # low = focused, deterministic code output
+MAX_TOKENS    = 8192        # max safe for 4.5GB RAM with deepseek-coder
 
 # ─── Connection check ─────────────────────────────────────────────────────────
 

@@ -29,7 +29,7 @@ def parse_args():
         "--model", "-m",
         type=str,
         default=None,
-        help="Path to .gguf model file (default: auto-detect in ./models/)",
+        help="Model to use: deepseek, phi3, mistral, tinyllama (default: deepseek)",
     )
     p.add_argument(
         "--verbose", "-v",
@@ -51,9 +51,15 @@ def main():
     cli.print_banner()
 
     # ── Load model ────────────────────────────────────────────────────────────
-    cli.print_status("Loading Phi-3 mini... (first load may take 10–30s)", style="dim")
+    cli.print_status("Loading model... (first load may take 10–30s)", style="dim")
 
-    ok = model.load_model(model_path=args.model, verbose=args.verbose)
+    chosen = args.model
+    if chosen and chosen in model.AVAILABLE_MODELS:
+        chosen = model.AVAILABLE_MODELS[chosen]
+    elif not chosen:
+        chosen = model.DEFAULT_MODEL
+    model.DEFAULT_MODEL = chosen
+    ok = model.load_model(model_path=chosen, verbose=args.verbose)
     if not ok:
         cli.print_status("Model failed to load. Exiting.", style="bold red")
         sys.exit(1)

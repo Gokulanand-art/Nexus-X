@@ -31,14 +31,19 @@ MAX_FILE_PREVIEW   = 600  # chars of file content shown to model
 
 # ─── System prompt ────────────────────────────────────────────────────────────
 
-BASE_SYSTEM = """You are Nexus, an offline AI coding assistant.
+BASE_SYSTEM = """You are Nexus, an expert AI coding assistant — precise, helpful, and direct.
+
+Reasoning approach:
+- First THINK through the problem step by step (wrap in <think>...</think>)
+- Then give your ANSWER — clean, complete, no placeholders
 
 Rules:
 - Use a tool when you need file info — never guess.
-- Be concise — show code only, no explanations.
-- Never use placeholder values like {} or <path> in code.
+- Never use placeholders like {{}}, <path>, TODO, or pass in final code.
 - One tool call per turn maximum.
 - For write/shell actions, the user will confirm before execution.
+- If explaining — be concise. If coding — be complete.
+- Always handle edge cases and errors in code.
 
 {mistakes_block}
 
@@ -75,9 +80,7 @@ If no tool is needed, answer directly in plain text."""
 def _build_system(user_input: str = "") -> str:
     mistakes = memory.get_mistakes_prompt()
     context  = learning.get_context_block(user_input) if user_input else ""
-    block    = "
-
-".join(filter(None, [mistakes, context]))
+    block    = "\n\n".join(filter(None, [mistakes, context]))
     return BASE_SYSTEM.format(mistakes_block=block)
 
 
@@ -216,10 +219,10 @@ def execute_tool(tool_name: str, args: dict) -> ToolResult:
 
 def _clean_for_history(response: str) -> str:
     """
-    Strip tool XML from assistant response before storing in history.
-    The model doesn't need to re-read its own tool calls — just the outcome.
-    Keeps the response short, preserving context window budget.
+    Strip tool XML and think blocks from assistant response before storing.
+    Keeps context window budget lean.
     """
+    response = re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL)
     for name in TOOL_NAMES:
         response = re.sub(rf"<{name}>.*?</{name}>", f"[called {name}]", response, flags=re.DOTALL)
     return response.strip()
@@ -254,14 +257,23 @@ class Agent:
 
             # ── 2. Stream model response ──────────────────────────────────────
             full_response = ""
+            in_think      = False
             try:
                 for chunk in model.stream_response(
                     messages,
-                    max_tokens=1024,
+                    max_tokens=8192,
                     temperature=0.2,
                 ):
-                    self.print_fn(chunk)
                     full_response += chunk
+                    if "<think>" in chunk:
+                        in_think = True
+                    if in_think:
+                        self.print_fn(chunk, dim=True)
+                    else:
+                        self.print_fn(chunk)
+                    if "</think>" in chunk:
+                        in_think = False
+                        self.print_fn("\n")
 
             except Exception as e:
                 self.print_fn(f"\n[error] {e}\n", error=True)
