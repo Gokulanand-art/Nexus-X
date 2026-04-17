@@ -38,7 +38,7 @@ MODEL_ALIASES = {
 _active_model = "phi3"
 
 # ─── Compatibility for CLI ─────────────────────────────────────────────
-AVAILABLE_MODELS = list(MODEL_ALIASES.keys())
+AVAILABLE_MODELS = MODEL_ALIASES.copy()
 DEFAULT_MODEL = "phi3"
 
 
