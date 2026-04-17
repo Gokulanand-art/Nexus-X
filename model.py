@@ -2,10 +2,8 @@
 model.py — Ollama brain connector for Nexus X.
 
 Models:
-  phi3          Microsoft Phi-3 Mini    — fast, 2.5GB RAM
-  deepseek-coder:6.7b DeepSeek Coder   — best code, 5.5GB RAM
-  mistral       Mistral 7B              — best chat, 4.5GB RAM
-  tinyllama     TinyLlama 1.1B          — lightest, 800MB RAM
+  deepseek-coder:6.7b Nexus Coder 1.0  — default, 5.5GB RAM
+  phi3                phi3             — optional, 2.5GB RAM
 """
 
 import json
@@ -14,37 +12,57 @@ import urllib.error
 from typing import Iterator
 
 OLLAMA_HOST   = "http://localhost:11434"
-TIMEOUT       = 45
+TIMEOUT       = 180
 TEMPERATURE   = 0.2
 MAX_TOKENS    = 1024
+CANONICAL_MODEL = "deepseek-coder:6.7b"
+PHI3_MODEL = "phi3"
+DISPLAY_MODEL = "Nexus Coder 1.0"
+DISPLAY_NAMES = {
+    CANONICAL_MODEL: DISPLAY_MODEL,
+    PHI3_MODEL: "phi3",
+}
 
 # Stop tokens per model — prevents repetition loops like ²³¹²³¹²³¹
 MODEL_STOP_TOKENS = {
-    "phi3":                 ["<|end|>", "<|user|>", "<|assistant|>", "<|system|>"],
-    "deepseek-coder:6.7b":  ["<|EOT|>", "User:", "Assistant:"],
-    "mistral":              ["[INST]", "[/INST]", "</s>"],
-    "tinyllama":            ["</s>", "<|user|>", "<|assistant|>"],
+    CANONICAL_MODEL: ["<|EOT|>", "User:", "Assistant:"],
+    PHI3_MODEL: ["<|end|>", "<|user|>", "<|assistant|>", "<|system|>"],
 }
 DEFAULT_STOP = ["<|end|>", "</s>", "User:", "Human:"]
 
 MODEL_ALIASES = {
-    "phi3":      "phi3",
-    "deepseek":  "deepseek-coder:6.7b",
-    "deepseek-coder": "deepseek-coder:6.7b",
-    "mistral":   "mistral",
-    "tinyllama": "tinyllama",
+    "phi3": PHI3_MODEL,
+    "deepseek": CANONICAL_MODEL,
+    "deepseek-coder": CANONICAL_MODEL,
+    "deepseek-coder:6.7b": CANONICAL_MODEL,
+    "nexus": CANONICAL_MODEL,
+    "nexus coder": CANONICAL_MODEL,
+    "nexus coder 1.0": CANONICAL_MODEL,
+    "nexus-coder": CANONICAL_MODEL,
+    "nexus-coder-1.0": CANONICAL_MODEL,
 }
 
-_active_model = "phi3"
+_active_model = CANONICAL_MODEL
 
 # ─── Compatibility for CLI ─────────────────────────────────────────────
 AVAILABLE_MODELS = MODEL_ALIASES.copy()
-DEFAULT_MODEL = "phi3"
+DEFAULT_MODEL = CANONICAL_MODEL
+
+
+def _normalize_model_name(name: str) -> str:
+    return name.strip().lower()
+
+
+def _display_model_name(model_name: str) -> str:
+    return DISPLAY_NAMES.get(model_name, model_name)
 
 
 def set_model(alias: str) -> bool:
     global _active_model
-    _active_model = MODEL_ALIASES.get(alias.lower(), alias)
+    resolved = MODEL_ALIASES.get(_normalize_model_name(alias))
+    if not resolved:
+        return False
+    _active_model = resolved
     return True
 
 
@@ -91,7 +109,17 @@ def list_available_models() -> list[str]:
 def load_model(model_path: str = None, verbose: bool = False) -> bool:
     global _active_model
     if model_path:
-        _active_model = MODEL_ALIASES.get(model_path.lower(), model_path)
+        resolved = MODEL_ALIASES.get(_normalize_model_name(model_path))
+        if not resolved:
+            print()
+            print(f"[nexus] Supported models: {DISPLAY_MODEL} and phi3.")
+            print("  Use: nexus --model phi3")
+            print("  Or:  nexus --model Nexus Coder 1.0")
+            print()
+            return False
+        _active_model = resolved
+    else:
+        _active_model = DEFAULT_MODEL
 
     if not is_ollama_running():
         print()
@@ -109,7 +137,7 @@ def load_model(model_path: str = None, verbose: bool = False) -> bool:
         return False
 
     if verbose:
-        print(f"[nexus] Ready — model: {_active_model}")
+        print(f"[nexus] Ready — model: {_display_model_name(_active_model)}")
     return True
 
 
@@ -135,6 +163,7 @@ def stream_response(
         "options": {
             "temperature":   temperature,
             "num_predict":   max_tokens,
+            "num_ctx":       1024,
             "stop":          stop_tokens,
             "repeat_penalty": 1.1,
             "top_k":         40,

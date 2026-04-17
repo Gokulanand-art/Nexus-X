@@ -3,7 +3,7 @@ main.py — Entry point for nexus.
 
 Startup sequence:
   1. Print banner
-  2. Load Phi-3 mini (llama-cpp-python)
+  2. Load Nexus Coder 1.0
   3. Start REPL loop
   4. Route /commands or user messages to agent
 """
@@ -23,13 +23,13 @@ import ingestor
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Nexus — offline AI coding assistant powered by Phi-3 mini"
+        description="Nexus — offline AI coding assistant powered by Nexus Coder 1.0"
     )
     p.add_argument(
         "--model", "-m",
-        type=str,
+        nargs="+",
         default=None,
-        help="Model to use: deepseek, phi3, mistral, tinyllama (default: deepseek)",
+        help="Model to use: phi3 or Nexus Coder 1.0 (default: Nexus Coder 1.0)",
     )
     p.add_argument(
         "--verbose", "-v",
@@ -53,12 +53,7 @@ def main():
     # ── Load model ────────────────────────────────────────────────────────────
     cli.print_status("Loading model... (first load may take 10–30s)", style="dim")
 
-    chosen = args.model
-    if chosen and chosen in model.AVAILABLE_MODELS:
-        chosen = model.AVAILABLE_MODELS[chosen]
-    elif not chosen:
-        chosen = model.DEFAULT_MODEL
-    model.DEFAULT_MODEL = chosen
+    chosen = " ".join(args.model) if args.model else model.DEFAULT_MODEL
     ok = model.load_model(model_path=chosen, verbose=args.verbose)
     if not ok:
         cli.print_status("Model failed to load. Exiting.", style="bold red")

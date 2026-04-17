@@ -24,7 +24,12 @@ def _ensure_dir():
     DATASET_DIR.mkdir(exist_ok=True)
 
 
-def save_pair(prompt: str, response: str, source: str = "conversation") -> bool:
+def save_pair(
+    prompt: str,
+    response: str,
+    source: str = "conversation",
+    quality: float | None = None,
+) -> bool:
     """
     Save a prompt/response pair to the JSONL dataset.
     Returns True if saved, False if skipped (too short).
@@ -40,6 +45,8 @@ def save_pair(prompt: str, response: str, source: str = "conversation") -> bool:
         "source":    source,
         "timestamp": datetime.now().isoformat(),
     }
+    if quality is not None:
+        record["quality"] = quality
 
     with open(DATASET_FILE, "a") as f:
         f.write(json.dumps(record) + "\n")
@@ -97,4 +104,3 @@ def clear() -> None:
     """Wipe the dataset. Irreversible."""
     if DATASET_FILE.exists():
         DATASET_FILE.unlink()
-

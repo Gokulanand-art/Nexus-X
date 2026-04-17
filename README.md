@@ -30,12 +30,11 @@ nexus
 
 | Setup | Disk Needed | RAM Needed |
 |-------|-------------|-------------|
-| phi3 lightweight | 5GB free | 2.5GB RAM |
-| deepseek-coder:6.7b default | 10GB free | 5.5GB RAM |
+| Nexus Coder 1.0 default | 10GB free | 5.5GB RAM |
 
 ---
 
-# 🧠 Running DeepSeek on 8GB RAM
+# 🧠 Running Nexus Coder 1.0 on 8GB RAM
 
 Enable swap first:
 
@@ -54,13 +53,10 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
 ---
 
-# 🔄 Switch Models
+# 🔄 Model
 
 ```bash
-nexus --model deepseek    # deepseek-coder:6.7b — best for code, needs 5.5GB RAM
-nexus --model phi3        # phi3 mini — fast, needs 2.5GB RAM
-nexus --model mistral     # mistral 7b — best for chat
-nexus --model tinyllama   # lightest — works on phone and low RAM devices
+nexus --model deepseek    # Nexus Coder 1.0 — default and only supported model
 ```
 
 ---
@@ -92,7 +88,7 @@ nexus --model tinyllama   # lightest — works on phone and low RAM devices
 - ❌ Mistake learning — records failures and never repeats them
 - 📊 Dataset builder — saves every conversation as JSONL training data
 - 🎯 Critic system — scores and improves its own outputs
-- 🔁 Model switchable — deepseek, phi3, mistral, tinyllama
+- 🤖 Powered by Nexus Coder 1.0 (deepseek-coder:6.7b)
 - 🔒 100% offline after setup
 
 ---
@@ -101,7 +97,7 @@ nexus --model tinyllama   # lightest — works on phone and low RAM devices
 
 | Module | Job |
 |--------|-----|
-| `model.py` | Ollama wrapper, streaming inference, model switching |
+| `model.py` | Ollama wrapper and Nexus Coder 1.0 runtime |
 | `agent.py` | Think act observe loop + RAG + critic + dataset |
 | `tools.py` | read_file, write_file, run_shell, search, list_tree |
 | `memory.py` | Mistake learning — never repeats errors |
@@ -150,7 +146,7 @@ You see the final answer
 | Fedora | Supported |
 | macOS | Supported |
 | Windows 10/11 | Supported |
-| Android proot | phi3 or tinyllama only |
+| Android proot | deepseek-coder:6.7b only |
 
 ---
 

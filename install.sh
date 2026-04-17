@@ -127,9 +127,11 @@ if ! pgrep -x "ollama" &>/dev/null; then
 rm -f /usr/local/bin/nexus 2>/dev/null || true
 fi
 
-log "Pulling DeepSeek Coder model (~3.8GB — only needed once)..."
+log "Pulling Nexus Coder 1.0 model (~3.8GB — only needed once)..."
 ollama pull deepseek-coder:6.7b
-success "Model ready"
+log "Pulling phi3 model (~2.5GB — only needed once)..."
+ollama pull phi3
+success "Models ready"
 
 # ─── 6. Clone / update repo ──────────────────────────────────────────────────
 log "Setting up Nexus X..."

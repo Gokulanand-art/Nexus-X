@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 
 $INSTALL_DIR = "$env:USERPROFILE\.nexus-x"
 $RAW         = "https://raw.githubusercontent.com/Gokulanand-art/nexus-x/main"
-$MODEL       = "phi3"
+$MODELS      = @("deepseek-coder:6.7b", "phi3")
 $VENV_DIR    = "$INSTALL_DIR\venv"
 
 function Log  ($msg) { Write-Host "[nexus] $msg" -ForegroundColor Cyan }
@@ -140,14 +140,21 @@ try {
     }
 }
 
-# ── 5. Pull model ─────────────────────────────────────────────────────────────
-Log "Pulling model: $MODEL (~2.3GB — downloaded once, works offline forever)..."
+# ── 5. Pull models ────────────────────────────────────────────────────────────
 Log "This will take a few minutes on first run..."
-try {
-    & ollama pull $MODEL
-    Ok "Model ready: $MODEL"
-} catch {
-    Warn "Model pull failed — you can run 'ollama pull $MODEL' manually later"
+foreach ($model in $MODELS) {
+    if ($model -eq "deepseek-coder:6.7b") {
+        Log "Pulling model: Nexus Coder 1.0 ($model, ~3.8GB — downloaded once, works offline forever)..."
+    } else {
+        Log "Pulling model: phi3 ($model, ~2.5GB — downloaded once, works offline forever)..."
+    }
+
+    try {
+        & ollama pull $model
+        Ok "Model ready: $model"
+    } catch {
+        Warn "Model pull failed — you can run 'ollama pull $model' manually later"
+    }
 }
 
 # ── 6. Create install directory ───────────────────────────────────────────────
@@ -273,13 +280,11 @@ Write-Host "nexus" -ForegroundColor Cyan
 Write-Host "    Option 2 — run directly now:              " -NoNewline
 Write-Host "& `"$INSTALL_DIR\nexus.bat`"" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Switch model:" -ForegroundColor White
-Write-Host "    nexus --model deepseek   " -ForegroundColor Cyan -NoNewline
-Write-Host "(best for code, needs 5.5GB RAM)" -ForegroundColor Gray
-Write-Host "    nexus --model phi3       " -ForegroundColor Cyan -NoNewline
-Write-Host "(fast, needs 2.5GB RAM)" -ForegroundColor Gray
-Write-Host "    nexus --model tinyllama  " -ForegroundColor Cyan -NoNewline
-Write-Host "(lightest, 800MB RAM)" -ForegroundColor Gray
+Write-Host "  Supported models:" -ForegroundColor White
+Write-Host "    nexus --model phi3                 " -ForegroundColor Cyan -NoNewline
+Write-Host "(phi3, needs 2.5GB RAM)" -ForegroundColor Gray
+Write-Host '    nexus --model "Nexus Coder 1.0" ' -ForegroundColor Cyan -NoNewline
+Write-Host "(deepseek-coder:6.7b, needs 5.5GB RAM)" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Inside Nexus type /help for all commands" -ForegroundColor Gray
 Write-Host ""

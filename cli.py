@@ -42,7 +42,7 @@ def print_banner():
     console.print(Text(BANNER, style="bold purple"))
     console.print(
         Panel(
-            "[dim]Offline AI coding assistant · DeepSeek Coder · by Gokulanand[/dim]\n"
+            "[dim]Offline AI coding assistant · Nexus Coder 1.0 · by Gokulanand[/dim]\n"
             "[dim]Type [bold white]/help[/bold white] for commands[/dim]",
             border_style="purple",
             padding=(0, 2),
