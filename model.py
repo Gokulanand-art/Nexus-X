@@ -30,11 +30,16 @@ DEFAULT_STOP = ["<|end|>", "</s>", "User:", "Human:"]
 MODEL_ALIASES = {
     "phi3":      "phi3",
     "deepseek":  "deepseek-coder:6.7b",
+    "deepseek-coder": "deepseek-coder:6.7b",
     "mistral":   "mistral",
     "tinyllama": "tinyllama",
 }
 
 _active_model = "phi3"
+
+# ─── Compatibility for CLI ─────────────────────────────────────────────
+AVAILABLE_MODELS = list(MODEL_ALIASES.keys())
+DEFAULT_MODEL = "phi3"
 
 
 def set_model(alias: str) -> bool:
@@ -131,7 +136,7 @@ def stream_response(
             "temperature":   temperature,
             "num_predict":   max_tokens,
             "stop":          stop_tokens,
-            "repeat_penalty": 1.1,   # penalize repeated tokens — fixes ²³¹ loops
+            "repeat_penalty": 1.1,
             "top_k":         40,
             "top_p":         0.9,
         },
