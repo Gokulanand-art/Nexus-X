@@ -165,3 +165,5 @@ def clear_memory() -> None:
     client = _get_client()
     client.delete_collection(COLLECTION)
 
+def is_available() -> bool:
+    return True
