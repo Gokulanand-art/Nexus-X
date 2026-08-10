@@ -6,6 +6,7 @@ warm-up → REPL.
 """
 
 import sys
+import time
 
 import cli
 import config
