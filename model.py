@@ -1,209 +1,238 @@
 """
-model.py — Ollama brain connector for Nexus X.
+model.py — Ollama connector for Nexus v2 (Qwen2.5-Coder 1.5B).
 
-Models:
-  deepseek-coder:6.7b Nexus Coder 1.0  — default, 5.5GB RAM
-  phi3                phi3             — optional, 2.5GB RAM
+Everything streams. Stop tokens are set per-model to kill repetition loops.
+Exposes:
+  - chat()      one-shot completion
+  - stream()    generator of (text, done, usage) chunks
+  - embed()     batch embeddings for RAG (nomic-embed-text)
+  - health()    ollama running? model pulled?
 """
 
 import json
-import urllib.request
+import time
 import urllib.error
-from typing import Iterator
+import urllib.request
+from http.client import HTTPResponse
+from typing import Iterator, Optional
 
-OLLAMA_HOST   = "http://localhost:11434"
-TIMEOUT       = 180
-TEMPERATURE   = 0.2
-MAX_TOKENS    = 1024
-CANONICAL_MODEL = "deepseek-coder:6.7b"
-PHI3_MODEL = "phi3"
-DISPLAY_MODEL = "Nexus Coder 1.0"
-DISPLAY_NAMES = {
-    CANONICAL_MODEL: DISPLAY_MODEL,
-    PHI3_MODEL: "phi3",
-}
-
-# Stop tokens per model — prevents repetition loops like ²³¹²³¹²³¹
-MODEL_STOP_TOKENS = {
-    CANONICAL_MODEL: ["<|EOT|>", "User:", "Assistant:"],
-    PHI3_MODEL: ["<|end|>", "<|user|>", "<|assistant|>", "<|system|>"],
-}
-DEFAULT_STOP = ["<|end|>", "</s>", "User:", "Human:"]
-
-MODEL_ALIASES = {
-    "phi3": PHI3_MODEL,
-    "deepseek": CANONICAL_MODEL,
-    "deepseek-coder": CANONICAL_MODEL,
-    "deepseek-coder:6.7b": CANONICAL_MODEL,
-    "nexus": CANONICAL_MODEL,
-    "nexus coder": CANONICAL_MODEL,
-    "nexus coder 1.0": CANONICAL_MODEL,
-    "nexus-coder": CANONICAL_MODEL,
-    "nexus-coder-1.0": CANONICAL_MODEL,
-}
-
-_active_model = CANONICAL_MODEL
-
-# ─── Compatibility for CLI ─────────────────────────────────────────────
-AVAILABLE_MODELS = MODEL_ALIASES.copy()
-DEFAULT_MODEL = CANONICAL_MODEL
+import config
 
 
-def _normalize_model_name(name: str) -> str:
-    return name.strip().lower()
+class ModelError(RuntimeError):
+    pass
 
 
-def _display_model_name(model_name: str) -> str:
-    return DISPLAY_NAMES.get(model_name, model_name)
+def _post(path: str, payload: dict) -> HTTPResponse:
+    req = urllib.request.Request(
+        url=f"{config.OLLAMA_HOST}{path}",
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    return urllib.request.urlopen(req, timeout=config.OLLAMA_TIMEOUT)
 
 
-def set_model(alias: str) -> bool:
-    global _active_model
-    resolved = MODEL_ALIASES.get(_normalize_model_name(alias))
-    if not resolved:
-        return False
-    _active_model = resolved
-    return True
+def _get(path: str) -> dict:
+    with urllib.request.urlopen(
+        f"{config.OLLAMA_HOST}{path}", timeout=10
+    ) as resp:
+        return json.loads(resp.read())
 
 
-def get_model() -> str:
-    return _active_model
+# ─── Health ─────────────────────────────────────────────────────────────────
 
-
-def _get_stop_tokens(model_name: str) -> list[str]:
-    base = model_name.split(":")[0]
-    for key, tokens in MODEL_STOP_TOKENS.items():
-        if key.split(":")[0] == base:
-            return tokens
-    return DEFAULT_STOP
-
-
-def is_ollama_running() -> bool:
+def is_running() -> bool:
     try:
-        urllib.request.urlopen(f"{OLLAMA_HOST}/api/tags", timeout=3)
+        _get("/api/tags")
         return True
     except Exception:
         return False
 
 
-def is_model_available(model_name: str = None) -> bool:
-    name = model_name or _active_model
+def is_model_available(model: Optional[str] = None) -> bool:
+    name = model or config.CHAT_MODEL
     try:
-        with urllib.request.urlopen(f"{OLLAMA_HOST}/api/tags", timeout=5) as resp:
-            data   = json.loads(resp.read())
-            models = [m["name"].split(":")[0] for m in data.get("models", [])]
-            return name.split(":")[0] in models
+        tags = _get("/api/tags")
+        return any(m["name"].split(":")[0] == name.split(":")[0]
+                   for m in tags.get("models", []))
     except Exception:
         return False
 
 
-def list_available_models() -> list[str]:
+def list_models() -> list[str]:
     try:
-        with urllib.request.urlopen(f"{OLLAMA_HOST}/api/tags", timeout=5) as resp:
-            data = json.loads(resp.read())
-            return [m["name"] for m in data.get("models", [])]
+        tags = _get("/api/tags")
+        return [m["name"] for m in tags.get("models", [])]
     except Exception:
         return []
 
 
-def load_model(model_path: str = None, verbose: bool = False) -> bool:
-    global _active_model
-    if model_path:
-        resolved = MODEL_ALIASES.get(_normalize_model_name(model_path))
-        if not resolved:
-            print()
-            print(f"[nexus] Supported models: {DISPLAY_MODEL} and phi3.")
-            print("  Use: nexus --model phi3")
-            print("  Or:  nexus --model Nexus Coder 1.0")
-            print()
-            return False
-        _active_model = resolved
-    else:
-        _active_model = DEFAULT_MODEL
-
-    if not is_ollama_running():
-        print()
-        print("[nexus] Ollama is not running.")
-        print("  1. Install: https://ollama.com/download")
-        print("  2. Start:   ollama serve")
-        print()
-        return False
-
-    if not is_model_available(_active_model):
-        print()
-        print(f"[nexus] Model '{_active_model}' not pulled.")
-        print(f"  Run: ollama pull {_active_model}")
-        print()
-        return False
-
-    if verbose:
-        print(f"[nexus] Ready — model: {_display_model_name(_active_model)}")
-    return True
+def get_short_name() -> str:
+    return config.CHAT_MODEL.split(":")[0]
 
 
-def is_loaded() -> bool:
-    return is_ollama_running() and is_model_available(_active_model)
+def get_threads() -> int:
+    return config.NUM_THREADS
 
 
-def stream_response(
-    messages:    list[dict],
-    max_tokens:  int   = MAX_TOKENS,
-    temperature: float = TEMPERATURE,
-    stop:        list  = None,
-    model:       str   = None,
-) -> Iterator[str]:
-    """Stream tokens. Automatically uses correct stop tokens to prevent repetition."""
-    active      = model or _active_model
-    stop_tokens = stop or _get_stop_tokens(active)
+def set_model(name: str) -> tuple[bool, str]:
+    """Switch CHAT_MODEL to any pulled model (Claude Code /model)."""
+    available = list_models()
+    match = next((m for m in available if m.split(":")[0] == name.split(":")[0]),
+                 None)
+    if not match:
+        return False, (f"Model '{name}' not pulled. Available: "
+                       + (", ".join(available) or "none"))
+    config.CHAT_MODEL = match
+    return True, f"Switched to {match} (offline)"
 
-    payload = json.dumps({
-        "model":    active,
+
+# ─── Generation ─────────────────────────────────────────────────────────────
+
+def _stop_tokens(model: Optional[str] = None) -> list[str]:
+    name = model or config.CHAT_MODEL
+    base = name.split(":")[0].lower()
+    if "qwen" in base:
+        return ["<|im_end|>", "<|im_start|>", "User:", "Assistant:"]
+    if "gemma" in base or "phi" in base or "granite" in base:
+        return ["<end_of_turn>", "<|end|>", "<|user|>", "<|assistant|>"]
+    return ["<|end|>", "</s>", "User:", "Human:"]
+
+
+def _sampling(temperature: float) -> dict:
+    """Balanced sampling — fast and stable on small models."""
+    return {
+        "temperature":   max(0.0, min(1.5, temperature)),
+        "top_k":         40,
+        "top_p":         0.9,
+        "repeat_penalty": 1.1,
+    }
+
+
+def stream(
+    messages: list[dict],
+    max_tokens: int = config.MAX_GENERATION,
+    temperature: float = config.TEMPERATURE,
+    model: Optional[str] = None,
+    num_ctx: int = config.NUM_CTX,
+    stop: Optional[list[str]] = None,
+) -> Iterator[tuple[str, bool, dict]]:
+    """
+    Yield (text, done, usage) tuples while the model generates.
+    usage = {"prompt_tokens": int, "gen_tokens": int} on the done chunk.
+    """
+    payload = {
+        "model":    model or config.CHAT_MODEL,
         "messages": messages,
         "stream":   True,
+        "keep_alive": config.KEEP_ALIVE,
         "options": {
-            "temperature":   temperature,
-            "num_predict":   max_tokens,
-            "num_ctx":       1024,
-            "stop":          stop_tokens,
-            "repeat_penalty": 1.1,
-            "top_k":         40,
-            "top_p":         0.9,
+            "num_predict": max_tokens,
+            "num_ctx":     num_ctx,
+            "num_thread":  config.NUM_THREADS,
+            "stop":        stop if stop is not None else _stop_tokens(model),
+            **_sampling(temperature),
         },
-    }).encode()
-
-    req = urllib.request.Request(
-        url     = f"{OLLAMA_HOST}/api/chat",
-        data    = payload,
-        headers = {"Content-Type": "application/json"},
-        method  = "POST",
-    )
-
+    }
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            for raw_line in resp:
-                line = raw_line.decode().strip()
+        with _post("/api/chat", payload) as resp:
+            for raw in resp:
+                line = raw.decode().strip()
                 if not line:
                     continue
                 try:
                     chunk = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                text = chunk.get("message", {}).get("content", "")
-                if text:
-                    yield text
-                if chunk.get("done"):
-                    break
-
+                msg = chunk.get("message", {})
+                text = msg.get("content", "")
+                done = bool(chunk.get("done"))
+                usage = {
+                    "prompt_tokens": chunk.get("prompt_eval_count", 0),
+                    "gen_tokens":    chunk.get("eval_count", 0),
+                }
+                yield text, done, usage
+                if done:
+                    return
     except urllib.error.URLError as e:
-        raise RuntimeError(f"Cannot reach Ollama: {e}\nRun: ollama serve")
+        raise ModelError(f"Cannot reach Ollama at {config.OLLAMA_HOST}: {e}")
     except TimeoutError:
-        raise RuntimeError(f"Ollama timed out after {TIMEOUT}s — try /reset")
+        raise ModelError(
+            f"Ollama timed out after {config.OLLAMA_TIMEOUT}s — "
+            "the model may still be loading. Try again."
+        )
 
 
 def complete(
-    messages:    list[dict],
-    max_tokens:  int   = MAX_TOKENS,
-    temperature: float = TEMPERATURE,
-    model:       str   = None,
+    messages: list[dict],
+    max_tokens: int = config.MAX_GENERATION,
+    temperature: float = config.TEMPERATURE,
+    model: Optional[str] = None,
+    num_ctx: int = config.NUM_CTX,
 ) -> str:
-    return "".join(stream_response(messages, max_tokens, temperature, model=model))
+    """One-shot completion (used for thinking, planning, extraction)."""
+    out = []
+    for text, done, _ in stream(
+        messages, max_tokens=max_tokens, temperature=temperature,
+        model=model, num_ctx=num_ctx,
+    ):
+        out.append(text)
+    return "".join(out)
+
+
+# ─── Embeddings (RAG) ───────────────────────────────────────────────────────
+
+def embed(texts: list[str], model: Optional[str] = None) -> list[list[float]]:
+    """
+    Batch embeddings via Ollama. Returns list of vectors.
+    Empty/whitespace texts yield zero vectors (dropped by caller).
+    """
+    name = model or config.EMBED_MODEL
+    vectors: list[list[float]] = []
+    batch = 16
+    for i in range(0, len(texts), batch):
+        group = texts[i:i + batch]
+        payload = {
+            "model": name,
+            "input": group,
+            "keep_alive": config.KEEP_ALIVE,
+        }
+        try:
+            with _post("/api/embed", payload) as resp:
+                data = json.loads(resp.read())
+                vectors.extend(data.get("embeddings", []))
+        except Exception:
+            # Fall back to one-by-one for the batch on failure
+            for t in group:
+                try:
+                    with _post("/api/embed", {
+                        "model": name, "input": t,
+                        "keep_alive": config.KEEP_ALIVE,
+                    }) as r:
+                        d = json.loads(r.read())
+                        vectors.append(d["embeddings"][0])
+                except Exception:
+                    vectors.append([0.0] * config.EMBED_DIM)
+    return vectors
+
+
+def embed_one(text: str, model: Optional[str] = None) -> list[float]:
+    vecs = embed([text], model=model)
+    return vecs[0] if vecs else [0.0] * config.EMBED_DIM
+
+
+# ─── Warm-up ────────────────────────────────────────────────────────────────
+
+def warmup(model: Optional[str] = None) -> float:
+    """Load the model into RAM so the first real prompt is fast."""
+    t0 = time.time()
+    try:
+        complete(
+            [{"role": "user", "content": "ping"}],
+            max_tokens=1, temperature=0.0,
+            model=model or config.CHAT_MODEL,
+        )
+    except Exception:
+        pass
+    return time.time() - t0

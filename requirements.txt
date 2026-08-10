@@ -1,1 +1,14 @@
-rich>=13.7.0
+# ── Core ──────────────────────────────────────────────────────────────────
+rich>=13.0
+numpy>=1.24
+tokenizers>=0.15
+python-dotenv>=1.0
+
+# ── Optional: Supabase RAG backend ────────────────────────────────────────
+# Enable the cloud vector store by installing and setting SUPABASE_URL+KEY:
+#   pip install supabase
+#   cp .env.example .env   →  fill in values
+
+# ── Optional: PDF/OCR ingestion ───────────────────────────────────────────
+#   pip install pypdf pytesseract pillow
+#   (pytesseract also needs the system `tesseract` binary)

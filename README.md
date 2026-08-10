@@ -1,21 +1,22 @@
-# 🚀 Nexus X — Offline AI Coding Assistant
-## ⚡ Built by Gokulanand
+# Nexus 2 — Offline AI Coding Assistant (2B-class)
 
-A fully offline AI coding assistant that runs **100% on your machine.**  
-No API keys. No subscriptions. No internet after setup.
+Reconstruction of **Nexus X** rebuilt for a **1.5B model** (`qwen2.5-coder:1.5b`)
+with a **massive hybrid RAG** (Supabase pgvector + local SQLite fallback),
+**Claude-style extended thinking**, tokenizer-exact context management, and
+fast single-pass streaming. 100% offline after setup.
 
----
+## Setup
 
-# ⚙️ One-Command Install
+### One-command install
 
-## 🐧 Linux / macOS
+**Linux / macOS:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Gokulanand-art/nexus-x/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Gokulanand-art/Nexus-X/main/install.sh | bash
 ```
 
-## 🪟 Windows (PowerShell as Admin)
+**Windows (PowerShell as Admin):**
 ```powershell
-irm https://raw.githubusercontent.com/Gokulanand-art/nexus-x/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/Gokulanand-art/Nexus-X/main/install.ps1 | iex
 ```
 
 Then just type:
@@ -24,138 +25,91 @@ Then just type:
 nexus
 ```
 
----
+The installer handles Python 3.10+, Ollama, the `qwen2.5-coder:1.5b` and
+`nomic-embed-text` models, a virtualenv, and the `nexus` launcher. Re-running
+it updates in place without touching your data.
 
-# 💾 Disk & RAM Requirements
-
-| Setup | Disk Needed | RAM Needed |
-|-------|-------------|-------------|
-| Nexus Coder 1.0 default | 10GB free | 5.5GB RAM |
-
----
-
-# 🧠 Running Nexus Coder 1.0 on 8GB RAM
-
-Enable swap first:
+### Manual setup
 
 ```bash
-sudo fallocate -l 4G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
+pip install -r requirements.txt
+
+ollama pull qwen2.5-coder:1.5b     # chat model (~1 GB)
+ollama pull nomic-embed-text       # embeddings for RAG (~300 MB)
+ollama serve
+
+nexus  # or: python3 main.py
 ```
 
-Make permanent across reboots:
+First launch downloads the exact Qwen tokenizer once (then fully offline).
+On first prompt the model loads and warms up (5–20s); after that it stays
+resident.
 
-```bash
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-```
+## How it differs from Nexus X v1
 
----
+| | v1 | v2 |
+|---|---|---|
+| Model | deepseek-coder:6.7b | qwen2.5-coder:1.5b |
+| RAG | ChromaDB, simple similarity | Hybrid (semantic + FTS5/pgvector), RRF fusion, heading-aware chunking, disk-cached embeddings |
+| Reasoning | critic loop after answer | Claude-style thinking pass *before* the answer |
+| Context | char-based trim | exact Qwen tokenizer, token-budget trimming |
+| Tool calls | model decides freely | intent detection + prefill steering (reliable on small models) |
+| Speed | critic re-generations | single streaming pass, self-heal only on failure |
 
-# 🔄 Model
-
-```bash
-nexus --model deepseek    # Nexus Coder 1.0 — default and only supported model
-```
-
----
-
-# 🛠️ Commands
+## Commands
 
 | Command | Description |
-|---------|-------------|
-| /help | Show all commands |
-| /run goal | Autonomous mode — agent works alone |
-| /ingest path | Ingest a file or folder into vector memory |
-| /memory | Show vector memory stats |
-| /dataset | Show training dataset stats |
-| /mistakes | Show recorded mistakes |
-| /clear | Clear mistake memory |
-| /reset | Clear conversation history |
-| /files | List files in current directory |
-| /exit | Exit Nexus |
+|---|---|
+| `/run <goal>` | Autonomous mode — planner + executor + retries |
+| `/ingest <path>` | Ingest file or folder into the vector store |
+| `/rag <question>` | Query the knowledge base directly |
+| `/think on\|off\|auto` | Extended thinking toggle |
+| `/memory`, `/dataset`, `/mistakes` | Store stats |
+| `/clear`, `/reset`, `/files`, `/help`, `/exit` | as before |
 
----
+## RAG backends
 
-# ✨ Features
+Default is **local**: SQLite FTS5 (full-text BM25) + numpy batch cosine,
+RRF fusion — zero config, zero cloud.
 
-- 🤖 Agent loop — thinks, acts, observes, repeats until task is done
-- 🧩 Chain-of-thought reasoning — thinks step by step before answering
-- 🚀 Autonomous mode `/run` — give it a goal, it plans and executes alone
-- 🧠 Vector memory — remembers every conversation via ChromaDB RAG
-- 📂 File ingestion — learns from your code, PDFs, and images
-- ❌ Mistake learning — records failures and never repeats them
-- 📊 Dataset builder — saves every conversation as JSONL training data
-- 🎯 Critic system — scores and improves its own outputs
-- 🤖 Powered by Nexus Coder 1.0 (deepseek-coder:6.7b)
-- 🔒 100% offline after setup
+For the **Supabase free tier** (pgvector, scales to 100k+ chunks):
 
----
+1. Create a project at supabase.com (free)
+2. Run `scripts/supabase_schema.sql` in the SQL editor
+3. Install client + set credentials:
 
-# 🏗️ Architecture
-
-| Module | Job |
-|--------|-----|
-| `model.py` | Ollama wrapper and Nexus Coder 1.0 runtime |
-| `agent.py` | Think act observe loop + RAG + critic + dataset |
-| `tools.py` | read_file, write_file, run_shell, search, list_tree |
-| `memory.py` | Mistake learning — never repeats errors |
-| `worker.py` | Autonomous planner + executor with retry logic |
-| `cli.py` | Rich terminal UI |
-| `main.py` | Entry point + REPL |
-| `learning.py` | ChromaDB vector memory — RAG retrieval |
-| `ingestor.py` | Ingests files, PDFs, images into memory |
-| `dataset.py` | Saves conversations as JSONL training data |
-| `critic.py` | Scores outputs, triggers improvement loop |
-| `install.sh` | One command Linux/Mac installer |
-| `install.ps1` | One command Windows installer |
-
----
-
-# 🔍 How It Works
-
-```text
-You type a task
-      ↓
-learning.py searches past memory and injects relevant context
-      ↓
-agent THINKS via chain-of-thought reasoning
-      ↓
-agent ACTS using tools — reads/writes files, runs commands
-      ↓
-agent OBSERVES result and loops if needed
-      ↓
-critic.py scores output and improves if score below 6/10
-      ↓
-dataset.py saves conversation as training pair
-      ↓
-memory.py stores mistakes to avoid repeating them
-      ↓
-You see the final answer
+```bash
+pip install supabase
+cp .env.example .env    # fill SUPABASE_URL + SUPABASE_SERVICE_KEY
 ```
 
----
+Nexus auto-detects the backend: credentials present → supabase, else local.
 
-# 💻 Platform Support
+## Architecture
 
-| Platform | Status |
-|----------|--------|
-| Arch Linux | Primary |
-| Ubuntu / Debian | Supported |
-| Fedora | Supported |
-| macOS | Supported |
-| Windows 10/11 | Supported |
-| Android proot | deepseek-coder:6.7b only |
+```
+main.py        REPL + preflight (Ollama, models, store)
+agent.py       Claude-style loop: RAG → thinking → stream → tools → persist
+thinking.py    extended thinking (budget-based, tag-stripped streaming)
+tokenizer.py   exact Qwen BPE counts + token-budget trimming
+model.py       Ollama chat/stream/embed client (urllib, no SDK)
+tools.py       read/write/list/run/search — safety-gated
+memory.py      mistakes.json — injected into prompts, guard rails
+worker.py      /run autonomous planner+executor
+rag/
+  chunker.py       recursive, heading-aware, overlapping chunks
+  embeddings.py    Ollama nomic-embed-text, LRU + disk cache
+  vector_store.py  store interface (backend auto-factory)
+  local_store.py   SQLite FTS5 hybrid (default)
+  supabase_store.py pgvector hybrid via PostgREST (optional)
+  indexer.py       files/pdf/OCR → chunks → embeddings → upsert
+scripts/supabase_schema.sql   one-time cloud RAG setup
+```
 
----
+## Notes
 
-# 🌐 GitHub
-
-https://github.com/Gokulanand-art/nexus-x
-
----
-
-# 📜 License
-
-MIT License — free to use, modify, and distribute.
+- Tweaks live in `config.py` / `.env` (context budget, temperature,
+  thinking budget, top-k...).
+- Every exchange is saved to `.nexus_dataset/conversations.jsonl` with the
+  reasoning + RAG sources attached — ready for future fine-tuning.
+- Minimal RAM: ~1.5GB for the model + embeddings. Runs on 8GB machines.
