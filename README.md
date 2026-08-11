@@ -30,6 +30,10 @@ you're in (it finds CLAUDE.md project instructions, ingests that folder into
 RAG, and `/init` writes project files there), while your code, models, and
 data stay in `~/.nexus`.
 
+Interactive terminals open the **full-screen TUI** (opencode-style: chat log,
+tool-call panes, confirm modal, Tab completion, ↑/↓ history). Use `nexus --repl`
+to force the classic streaming REPL instead, or pipe input for scripts.
+
 The installer handles Python 3.10+, Ollama, the `qwen2.5-coder:1.5b` and
 `nomic-embed-text` models, a virtualenv, and the `nexus` launcher. Re-running
 it updates in place without touching your data.

@@ -3,6 +3,7 @@ rich>=13.0
 numpy>=1.24
 tokenizers>=0.15
 python-dotenv>=1.0
+textual>=8.0
 
 # ── Optional: Supabase RAG backend ────────────────────────────────────────
 # Enable the cloud vector store by installing and setting SUPABASE_URL+KEY:
