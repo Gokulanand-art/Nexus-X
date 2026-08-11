@@ -237,13 +237,6 @@ class NexusApp(App):
         except Exception as e:
             self.go(lambda: self._line(f"RAG disabled: {e}"))
 
-        self.go(lambda: self.spinner.start("Warming up model"))
-        t0 = __import__("time").time()
-        model.warmup()
-        elapsed = __import__("time").time() - t0
-        self.go(self.spinner.stop)
-
-
         from pathlib import Path
         mistakes = memory.list_mistakes()
 
@@ -256,7 +249,7 @@ class NexusApp(App):
                     ("workspace ", str(Path.cwd()))]
             if rag:
                 rows.append(("rag       ", rag))
-            rows.append(("ready     ", f"{elapsed:.1f}s · 100% offline"))
+            rows.append(("ready     ", "warming up…"))
             body = Text()
             for label, value in rows:
                 body.append(f"  {label}", style="bold " + ACCENT)
@@ -269,8 +262,16 @@ class NexusApp(App):
                 self._block(Text(
                     f"{len(mistakes)} mistake(s) in memory — injected into prompts.",
                     style="dim yellow"), classes="session")
-                self.go(card)
+        self.go(card)
         self.go(self.spinner.stop)
+
+        # warm up in the background — the card is already on screen
+        self.go(lambda: self.spinner.start("Warming up model"))
+        t0 = __import__("time").time()
+        model.warmup()
+        elapsed = __import__("time").time() - t0
+        self.go(self.spinner.stop)
+        self.go(lambda: self._line(f"· model ready in {elapsed:.1f}s"))
 
         if self._pending:
             for q in self._pending:

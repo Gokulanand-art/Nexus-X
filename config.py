@@ -60,15 +60,15 @@ CHAT_DISPLAY     = os.getenv("NEXUS_CHAT_DISPLAY", "Nexus 2 · Qwen2.5-Coder 1.5
 # ─── Ollama ────────────────────────────────────────────────────────────────
 OLLAMA_HOST      = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_TIMEOUT   = int(os.getenv("OLLAMA_TIMEOUT", "180"))
-KEEP_ALIVE       = os.getenv("OLLAMA_KEEPALIVE", "30m")
+KEEP_ALIVE       = os.getenv("OLLAMA_KEEPALIVE", "24h")
 
 # ─── Context budget (tokens) ───────────────────────────────────────────────
 # qwen2.5-coder supports 32k; we budget conservatively so generation
 # never truncates and latency stays low on CPU.
-NUM_CTX          = int(os.getenv("NEXUS_NUM_CTX", "16384"))
+NUM_CTX          = int(os.getenv("NEXUS_NUM_CTX", "8192"))
 CONTEXT_BUDGET   = int(os.getenv("NEXUS_CONTEXT_BUDGET", str(NUM_CTX // 2)))
 MAX_GENERATION   = int(os.getenv("NEXUS_MAX_GENERATION", "1536"))
-THINK_BUDGET     = int(os.getenv("NEXUS_THINK_BUDGET", "512"))
+THINK_BUDGET     = int(os.getenv("NEXUS_THINK_BUDGET", "256"))
 TEMPERATURE      = float(os.getenv("NEXUS_TEMPERATURE", "0.2"))
 NUM_THREADS      = int(os.getenv("NEXUS_THREADS", str(os.cpu_count() or 4)))
 
@@ -93,7 +93,7 @@ MISTAKES_FILE    = PROJECT_DIR / "mistakes.json"
 # ─── Agent ─────────────────────────────────────────────────────────────────
 MAX_TURNS        = int(os.getenv("NEXUS_MAX_TURNS", "10"))
 MAX_TOOL_OUTPUT  = int(os.getenv("NEXUS_MAX_TOOL_OUTPUT", "800"))
-THINKING_AUTO    = os.getenv("NEXUS_THINKING", "auto").lower()  # on | off | auto
+THINKING_AUTO    = os.getenv("NEXUS_THINKING", "off").lower()  # on | off | auto — off = fast
 
 def store_backend() -> str:
     """'supabase' if configured, else 'local'."""
