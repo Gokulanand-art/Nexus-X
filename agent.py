@@ -114,6 +114,31 @@ class Agent:
         )
 
     @staticmethod
+    def _is_single_tool_ask(q: str) -> bool:
+        """True for short, one-action asks (fast path eligible)."""
+        q = q.lower()
+        if len(q) > 80:
+            return False
+        return not any(k in q for k in (" and ", " then ", " also ",
+                                        ", then", "; then"))
+
+    @staticmethod
+    def _fast_summary(tool_name: str, args: dict, result) -> str:
+        if tool_name == "list_tree":
+            lines = [l for l in result.output.splitlines() if l.strip()]
+            n = max(0, len(lines) - 1)
+            where = lines[0] if lines else args.get("root", "")
+            word = "entry" if n == 1 else "entries"
+            return f"Listed {where} — {n} {word}."
+        if tool_name == "read_file":
+            return f"Read {args.get('path', '')}."
+        if tool_name == "search":
+            n = len([l for l in result.output.splitlines() if l.strip()])
+            word = "match" if n == 1 else "matches"
+            return f"Search done — {n} {word}."
+        return f"{tool_name} done."
+
+    @staticmethod
     def _project_instructions() -> str:
         """CLAUDE.md support — the file Claude Code loads into the prompt."""
         try:
@@ -267,6 +292,7 @@ class Agent:
         # Claude Code-style tool forcing: prefill the matching tool call
         # so the model ACTS instead of explaining how the user could act.
         self._prefill = self._steer(user_input) if user_input else None
+        fast_path = False   # True when this turn ran on a complete prefill
 
         for turn in range(config.MAX_TURNS):
             # Direct tool execution (Claude Code style): when the prefill
@@ -303,6 +329,7 @@ class Agent:
                         full = self._prefill + full
                 else:
                     full = self._prefill
+                    fast_path = True
             except model.ModelError as e:
                 if spinner:
                     self.ui.stop_spinner(spinner)
@@ -386,6 +413,17 @@ class Agent:
 
             self.history.append({"role": "user",
                                  "content": self.summarize_tool(tool_name, result.output, result.ok)})
+
+            # Fast path: one mechanical tool ask, done — skip the model
+            # round trip that would only restate the tool output.
+            if (fast_path and result.ok
+                    and tool_name in {"list_tree", "read_file", "search"}
+                    and self._is_single_tool_ask(user_input)):
+                final_response = self._fast_summary(tool_name, args, result)
+                self.print_fn(final_response + "\n")
+                self.history.append({"role": "assistant",
+                                     "content": final_response})
+                break
 
             if turn == config.MAX_TURNS - 1:
                 final_response = full
