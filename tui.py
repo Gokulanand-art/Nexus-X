@@ -126,6 +126,7 @@ class NexusApp(App):
         self._complete_idx = -1
         self._busy = False
         self._pending: list[str] = []
+        self._spin_armed = False
 
     # ── Layout ──────────────────────────────────────────────────────────
 
@@ -157,6 +158,7 @@ class NexusApp(App):
             self.call_from_thread(fn)
 
     def _block(self, renderable, classes: str = ""):
+        self._silence_spinner()
         static = Static(renderable, markup=False, classes=classes)
         self.chat.mount(static)
         self.call_after_refresh(self.chat.scroll_end, animate=False, speed=50)
@@ -169,8 +171,15 @@ class NexusApp(App):
                       box=box.ROUNDED, border_style=ACCENT, padding=(0, 1))
         self._block(panel, classes="user")
 
+    def _silence_spinner(self):
+        """First visible output ends the 'Thinking' spinner (REPL-style)."""
+        if self._spin_armed:
+            self._spin_armed = False
+            self.spinner.stop()
+
     def _assistant_chunk(self, text: str):
         """Stream assistant text into the live block, flushing on newlines."""
+        self._silence_spinner()
         if self._stream_static is None or not self._stream_static.is_attached:
             self._stream = Text()
             self._stream_static = Static(self._stream, markup=False)
@@ -331,6 +340,7 @@ class NexusApp(App):
         threading.Thread(target=self._run_turn, args=(q,), daemon=True).start()
 
     def _run_turn(self, q: str):
+        self._spin_armed = True
         self.go(lambda: self.spinner.start("Thinking"))
         try:
             self._agent.run(q)
