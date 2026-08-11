@@ -188,12 +188,27 @@ class NexusApp(App):
 
     # ── Boot sequence (worker thread) ───────────────────────────────────
 
+    def _show_banner(self):
+        """NEXUS gradient banner card, shown first on launch."""
+        import cli as cli_mod
+        lines = cli_mod.BANNER.strip("\n").splitlines()
+        art = Text()
+        for i, line in enumerate(lines):
+            art.append(line, style=cli_mod.GRADIENT[i % len(cli_mod.GRADIENT)])
+            art.append("\n")
+        self._block(Panel(art, box=box.ROUNDED, border_style=ACCENT,
+                          padding=(0, 2)), classes="banner")
+        self._block(Text("Nexus 2 · 100% offline · Tab completes /commands · /help",
+                         style="dim italic"), classes="banner")
+
     def _boot(self):
         import cli
         import memory
         import model
         from agent import Agent
         from rag.vector_store import get_store
+
+        self.go(self._show_banner)
 
         if not model.is_running():
             self.go(lambda: self._block(
