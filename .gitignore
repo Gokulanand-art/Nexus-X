@@ -9,4 +9,4 @@ mistakes.json
 .venv/
 venv/
 dist/
-build/
+build/graphify-out/
