@@ -1,10 +1,11 @@
 """
-cli.py — Claude Code-style terminal UI.
+cli.py — Claude Code-premium terminal UI. Streaming REPL, no full-screen TUI.
 
+  gradient NEXUS banner + session card on startup
   > prompt with /-command tab completion
   ⠋ spinner while the model loads its first token
-  ── Tool Use ── headers with ⎿ result rows (Claude Code look)
-  dim italic thinking pane, token usage footer
+  ╭─ boxed tool-call panes (per-tool border colors) ─╮
+  ◤ Thinking —, colored streaming reply, diff panes, token footer
 """
 
 import itertools
@@ -12,8 +13,11 @@ import sys
 import threading
 import time
 
-from rich.console import Console
+from rich import box
+from rich.console import Console, Group
 from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
 
 import config
@@ -21,13 +25,16 @@ import config
 console = Console(highlight=False)
 
 BANNER = """
- ███╗   ██╗███████╗██╗  ██╗██╗   ██╗██╗   ██╗███████╗    ██╗    ██╗
- ████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝    ██║    ██║
- ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗    ██║ █╗ ██║
- ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║    ██║███╗██║
- ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║    ╚███╔███╔╝
- ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝     ╚══╝╚══╝
+ ███╗   ██╗███████╗██╗  ██╗██╗   ██╗██╗   ██╗███████╗
+ ████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝    ██╔════╝
+ ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗    █████╗
+ ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║    ██╔══╝
+ ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║    ███████╗
+ ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝    ╚══════╝
 """
+
+GRADIENT = ["bold #e879f9", "bold #c084fc", "bold #a78bfa",
+            "bold #818cf8", "bold #60a5fa", "bold #22d3ee"]
 
 SLASH_COMMANDS = [
     "/help", "/run", "/ingest", "/rag", "/think", "/memory",
@@ -69,26 +76,79 @@ TOOL_LABELS = {
     "list_tree":  "LS",
 }
 
+TOOL_COLORS = {
+    "run_shell":  "green",
+    "read_file":  "cyan",
+    "write_file": "yellow",
+    "edit_file":  "magenta",
+    "multi_edit": "magenta",
+    "search":     "blue",
+    "list_tree":  "dim white",
+}
+
+ACCENT = "#c084fc"
+
+
+def _arg_text(args: dict) -> str:
+    for key in ("path", "root", "command"):
+        if args.get(key):
+            return str(args[key])
+    return ""
+
+
+# ─── Startup: banner + session card ────────────────────────────────────────
 
 def print_banner():
-    console.print(Text(BANNER, style="bold purple"))
-    console.print(
-        f"[dim]Nexus 2 · {config.CHAT_DISPLAY} · offline · "
-        f"{config.store_backend()} RAG[/dim]\n"
-        "[dim]type /help for commands · Tab completes /commands[/dim]",
-        style="none",
-    )
+    lines = BANNER.strip("\n").splitlines()
+    art = Text()
+    for i, line in enumerate(lines):
+        art.append(line, style=GRADIENT[i % len(GRADIENT)])
+        art.append("\n")
+    console.print(Panel(art, box=box.ROUNDED, border_style=ACCENT,
+                        padding=(0, 2), expand=False))
+    console.print(Text(
+        f"{config.CHAT_DISPLAY} · 100% offline · {config.store_backend()} RAG",
+        style="dim italic", justify="center"))
+    console.print(Text("Tab completes /commands · /help for all commands",
+                       style="dim", justify="center"))
+    console.print()
+
+
+def session_start(info: dict):
+    """Premium session card shown once the model is warm."""
+    rows = [(f"model     ", info.get("model", "")),
+            (f"workspace ", info.get("workspace", ""))]
+    if info.get("rag"):
+        rows.append((f"rag       ", info["rag"]))
+    rows.append((f"ready     ", info.get("ready", "")))
+    body = Text()
+    for label, value in rows:
+        body.append(f"  {label}", style="bold " + ACCENT)
+        body.append(value, style="white" if value else "dim")
+        body.append("\n")
+    body.rstrip()
+    console.print(Panel(body, box=box.ROUNDED,
+                        border_style=ACCENT, padding=(0, 1), expand=False))
+    if info.get("mistakes"):
+        console.print(Text(f"{info['mistakes']} mistake(s) in memory — "
+                           "injected into prompts", style="dim yellow"))
+    console.print(Text("Ask me anything — code, files, questions.",
+                       style="dim italic"))
     console.print()
 
 
 def print_help():
-    console.print("\n[bold]Commands:[/bold]")
+    table = Table(box=box.SIMPLE_HEAVY, border_style="dim #7c3aed",
+                  padding=(0, 1), show_header=False, title="Commands",
+                  title_style="bold " + ACCENT, expand=False)
     for cmd, desc in COMMANDS.items():
-        console.print(f"  [cyan]{cmd:<12}[/cyan] {desc}")
+        table.add_row(Text(f"{cmd:<12}", style="bold cyan"), Text(desc))
+    console.print()
+    console.print(table)
     console.print()
 
 
-# ─── Input with /-completion ───────────────────────────────────────────────
+# ─── Input ─────────────────────────────────────────────────────────────────
 
 try:
     import readline
@@ -110,7 +170,7 @@ except Exception:
 def get_input() -> str:
     try:
         console.print()
-        return console.input("[bold purple]>[/bold purple] ").strip()
+        return console.input(f"[bold {ACCENT}]>[/bold {ACCENT}] ").strip()
     except (EOFError, KeyboardInterrupt):
         return "/exit"
 
@@ -118,7 +178,9 @@ def get_input() -> str:
 def ask_confirm(prompt: str) -> bool:
     try:
         console.print()
-        answer = console.input(f"[yellow]{prompt}[/yellow]").strip().lower()
+        answer = console.input(
+            f"[bold yellow]?[/bold yellow] [white]{prompt}[/white]"
+        ).strip().lower()
         return answer in ("y", "yes")
     except (EOFError, KeyboardInterrupt):
         return False
@@ -126,12 +188,31 @@ def ask_confirm(prompt: str) -> bool:
 
 # ─── Streaming output ──────────────────────────────────────────────────────
 
+def _style_line(line: str) -> Text:
+    """Light markdown-lite coloring for complete reply lines."""
+    s = line.strip()
+    if not s:
+        return Text("")
+    if s.startswith(("#", "---", "===")):
+        return Text(line, style="bold cyan")
+    if s.startswith("```"):
+        return Text(line, style="dim")
+    if s.startswith((">", "»")):
+        return Text(line, style="italic green")
+    return Text(line)
+
+
 def print_output(text: str, dim: bool = False, error: bool = False,
                  italic: bool = False):
     if error:
         console.print(text, style="bold red", end="")
     elif dim or italic:
         console.print(text, style=("dim italic" if italic else "dim"), end="")
+    elif text.endswith("\n"):
+        # Complete lines only — streamed mid-line chunks stay plain.
+        body = text[:-1].split("\n")
+        for i, line in enumerate(body):
+            console.print(_style_line(line), end="\n" if i < len(body) - 1 else "")
     else:
         print(text, end="", flush=True)
 
@@ -140,7 +221,7 @@ def print_status(msg: str, style: str = "dim"):
     console.print(f"[{style}]{msg}[/{style}]")
 
 
-# ─── Spinner (before the first token) ──────────────────────────────────────
+# ─── Spinner ───────────────────────────────────────────────────────────────
 
 def start_spinner(message: str = "Thinking"):
     evt = threading.Event()
@@ -149,7 +230,7 @@ def start_spinner(message: str = "Thinking"):
 
     def run():
         while not evt.is_set():
-            sys.stdout.write(f"\r\033[90m{next(frames)} {message}\033[0m")
+            sys.stdout.write(f"\r\033[38;5;141m{next(frames)} {message}\033[0m")
             sys.stdout.flush()
             time.sleep(0.08)
 
@@ -171,94 +252,157 @@ def stop_spinner(spinner: dict):
 
 def tool_use(tool_name: str, args: dict):
     label = TOOL_LABELS.get(tool_name, tool_name)
-    arg = args.get("path") or args.get("root") or args.get("command") or ""
-    summary = f"{label}  {arg}"
-    console.print(f"\n[cyan]── {summary} [/cyan]"
-                  f"[dim]{'─' * max(4, 48 - len(summary))}[/dim]")
-    console.print(f"[cyan]⎿  {summary}[/cyan]")
+    color = TOOL_COLORS.get(tool_name, "cyan")
+    arg = _arg_text(args)
+    body = Text()
+    body.append(f" {label}", style=f"bold {color}")
+    if arg:
+        body.append(f"  ", style="dim")
+        body.append(arg, style="white")
+    body.append(" ")
+    console.print()
+    console.print(Panel(body, box=box.ROUNDED, border_style=color,
+                        padding=(0, 1)))
 
 
 def tool_result(ok: bool, output: str):
     lines = [l for l in output.splitlines() if l.strip()]
     if lines and lines[0] == "```":   # read_file fenced output — skip fence
         lines = lines[1:]
+    while lines and lines[-1] == "```":
+        lines = lines[:-1]
     if ok:
-        first = lines[0][:130] if lines else "(no output)"
-        console.print(f"[dim]⎿  {first}[/dim]")
+        body = Text()
+        for line in lines[:12]:
+            body.append(line[:200], style="dim")
+            body.append("\n")
+        if len(lines) > 12:
+            body.append(f"… {len(lines) - 12} more lines", style="dim italic")
+            body.append("\n")
+        body.rstrip()
+        console.print(Panel(body or Text("(no output)", style="dim"),
+                            box=box.ROUNDED, border_style="dim",
+                            padding=(0, 1)))
     else:
         err = " | ".join(lines[:2])[:150] if lines else "unknown error"
-        console.print(f"[bold red]✘ {err}[/bold red]")
+        console.print()
+        console.print(Panel(Text(f" ✘  {err}"),
+                            box=box.ROUNDED, border_style="red",
+                            padding=(0, 1)))
 
 
 def show_edit_result(result) -> None:
-    """Claude Code-style edit preview: header + color-coded diff."""
+    """Claude Code-style edit pane: summary + color-coded diff."""
     ok, output = result.ok, result.output
     if not ok:
-        console.print(f"[bold red]✘ {output.splitlines()[0][:150]}[/bold red]")
+        first = output.splitlines()[0][:150] if output.splitlines() else "error"
+        console.print()
+        console.print(Panel(Text(f" ✘  {first}"),
+                            box=box.ROUNDED, border_style="red", padding=(0, 1)))
         return
     first, _, diff = output.partition("\n")
-    console.print(f"[cyan]⎿  {first[:130]}[/cyan]")
-    n = 0
-    for line in diff.splitlines():
-        if n >= 40 and len(diff.splitlines()) > 42:
-            console.print(f"[dim]… {len(diff.splitlines()) - 40} more lines[/dim]")
+    diff_lines = diff.splitlines()
+    body = Text()
+    body.append(f" {first[:130]}", style="bold white")
+    body.append("\n")
+    n = len(diff_lines)
+    for i, line in enumerate(diff_lines):
+        if i >= 40 and n > 42:
+            body.append(f" … {n - 40} more lines", style="dim italic")
             break
-        if line.startswith(("+++", "---")):
-            console.print(f"[dim]{line}[/dim]")
+        if line.startswith(("+++", "---", "@@")):
+            body.append(line, style="dim")
         elif line.startswith("+"):
-            console.print(f"[green]{line}[/green]")
+            body.append(line, style="green")
         elif line.startswith("-"):
-            console.print(f"[red]{line}[/red]")
-        elif line.startswith("@@"):
-            console.print(f"[dim yellow]{line}[/dim yellow]")
+            body.append(line, style="red")
         else:
-            console.print(f"[dim]{line}[/dim]")
-        n += 1
+            body.append(line, style="dim")
+        body.append("\n")
+    body.rstrip()
+    console.print()
+    console.print(Panel(body, box=box.ROUNDED, border_style="magenta",
+                        padding=(0, 1)))
 
 
 def thinking_header():
-    console.print("\n[dim italic]── Thinking ──[/dim italic]")
+    t = Text()
+    t.append("\n", style="")
+    t.append("◤ ", style="bold cyan")
+    t.append("Thinking", style="italic cyan")
+    t.append(" ── reasoning pass", style="dim italic")
+    console.print(t)
 
 
 def error_box(msg: str):
-    console.print(f"[bold red]── Error ──[/bold red]\n[red]{msg}[/red]")
+    console.print()
+    console.print(Panel(Text(f" ✘  {msg}", style="bold red"),
+                        box=box.ROUNDED, border_style="red", padding=(0, 1)))
 
 
 def usage_footer(prompt_tokens: int, gen_tokens: int):
-    console.print(f"[dim]tokens: {prompt_tokens:,} in · {gen_tokens:,} out[/dim]")
+    console.print(Text(
+        f"· tokens: {prompt_tokens:,} in · {gen_tokens:,} out",
+        style="dim"))
 
 
 def show_files(result, path_label: str):
     """Render the /files listing like Claude Code's file view."""
     rows = result.output.splitlines()
-    console.print(f"\n[bold]Files[/bold] [dim]({rows[0]})[/dim]")
+    body = Text()
+    body.append(f" {rows[0]}", style="bold cyan")
+    body.append("\n")
     for row in rows[1:]:
         if row.startswith("  …"):
-            console.print(row)
+            body.append(row, style="dim")
         else:
-            console.print(f"[dim]{row}[/dim]")
-    if not rows[1:]:
-        console.print("[dim]  (empty)[/dim]")
+            body.append(row, style="dim white")
+        body.append("\n")
+    body.rstrip()
+    console.print()
+    console.print(Panel(body, box=box.ROUNDED, border_style="cyan",
+                        padding=(0, 1)))
 
 
 def show_mistakes(mistakes: list[dict]):
     if not mistakes:
-        console.print("[dim]No mistakes recorded yet.[/dim]")
+        console.print(Text("\nNo mistakes recorded yet.", style="dim italic"))
         return
-    console.print(f"\n[bold]Recorded mistakes ({len(mistakes)}):[/bold]\n")
+    console.print()
+    body = Text()
     for i, m in enumerate(mistakes, 1):
-        console.print(f"[bold red]{i}.[/bold red] [yellow]{m['pattern']}[/yellow]")
-        console.print(f"   Cause: [dim]{m['cause']}[/dim]")
-        console.print(f"   Fix:   [green]{m['fix']}[/green]")
-        console.print(f"   Seen:  {m.get('count', 1)} time(s)\n")
+        body.append(f" {i}. ", style="bold red")
+        body.append(m["pattern"], style="yellow")
+        body.append("\n")
+        body.append(f"    cause  ", style="bold dim")
+        body.append(m["cause"], style="dim")
+        body.append("\n")
+        body.append(f"    fix    ", style="bold green")
+        body.append(m["fix"], style="green")
+        body.append("\n")
+        body.append(f"    seen   ", style="bold dim")
+        body.append(f"{m.get('count', 1)} time(s)", style="dim")
+        body.append("\n\n")
+    body.rstrip()
+    console.print(Panel(body, title=f"[bold red]Recorded mistakes ({len(mistakes)})[/bold red]",
+                        box=box.ROUNDED,
+                        border_style="dim", padding=(0, 1)))
 
 
 def show_rag_hits(hits):
     if not hits:
-        console.print("[dim]No relevant chunks found.[/dim]")
+        console.print(Text("No relevant chunks found.", style="dim italic"))
         return
-    console.print(f"\n[bold]{len(hits)} chunks found:[/bold]\n")
+    console.print()
+    parts: list = []
     for h in hits:
-        console.print(f"[cyan]{h.source}[/cyan]  [dim]score {h.score}[/dim]")
-        console.print(Markdown(h.text[:300]))
-        console.print()
+        head = Text()
+        head.append(f" {h.source}", style="bold cyan")
+        head.append(f"  ·  score {h.score}", style="dim")
+        parts.append(head)
+        parts.append(Markdown(h.text[:300]))
+        parts.append(Text("\n\n"))
+    console.print(Panel(Group(*parts[:-1]),
+                        title=f"[bold {ACCENT}]Context ({len(hits)} chunks)[/bold {ACCENT}]",
+                        box=box.ROUNDED,
+                        border_style=ACCENT, padding=(0, 1)))

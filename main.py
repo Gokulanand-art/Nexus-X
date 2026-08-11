@@ -7,6 +7,7 @@ warm-up → REPL.
 
 import sys
 import time
+from pathlib import Path
 
 import cli
 import config
@@ -53,35 +54,31 @@ def main():
 
     # ── RAG store ──────────────────────────────────────────────────────────
     store = None
+    rag_label = None
     try:
         store = get_store()
         stats = store.stats()
-        cli.print_status(
-            f"RAG: {stats['backend']} — {stats['total_chunks']} chunks",
-            style="green" if stats["total_chunks"] else "dim",
-        )
+        rag_label = (f"{stats['backend']} · {stats['total_chunks']} chunks"
+                     if stats["total_chunks"] else stats["backend"])
     except Exception as e:
         cli.print_status(f"RAG disabled: {e}", style="yellow")
 
     # ── Warm up the 2B model so the first prompt is fast ───────────────────
     cli.print_status("Warming up model (first load 5–20s)...", style="dim")
     t = model.warmup()
-    cli.print_status(f"Model ready in {t:.1f}s — 100% offline.", style="green")
 
     mistakes = memory.list_mistakes()
-    if mistakes:
-        cli.print_status(
-            f"{len(mistakes)} mistake(s) in memory — injected into prompts.",
-            style="dim yellow",
-        )
 
     agent = Agent(ask_fn=cli.ask_confirm, print_fn=cli.print_output,
                   store=store, ui=cli)
 
-    cli.console.print()
-    cli.console.print("[dim]Welcome. Ask me anything — code, files, questions.[/dim]")
-    cli.console.print("[dim]Type /help for commands · Ctrl+C to quit[/dim]")
-    cli.console.print()
+    cli.session_start({
+        "model": model.get_short_name(),
+        "workspace": str(Path.cwd()),
+        "rag": rag_label,
+        "ready": f"{t:.1f}s · 100% offline",
+        "mistakes": len(mistakes),
+    })
 
     while True:
         user_input = cli.get_input()
