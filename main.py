@@ -47,6 +47,22 @@ def _run_autonomous(goal: str, agent: Agent, print_fn):
 
 
 def main():
+    # ── Frontend: full-screen TUI by default when interactive,            ──
+    #    classic REPL when piped or when --repl is requested.               ──
+    args = sys.argv[1:]
+    if "--repl" in args or not (sys.stdin.isatty() and sys.stdout.isatty()):
+        _run_repl()
+        return
+    try:
+        from tui import run_tui
+    except Exception as e:
+        print(f"[nexus] TUI unavailable ({e}) — falling back to REPL.")
+        _run_repl()
+        return
+    run_tui()
+
+
+def _run_repl():
     cli.print_banner()
 
     if not _preflight():
