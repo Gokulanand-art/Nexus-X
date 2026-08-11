@@ -271,9 +271,10 @@ def _model_switch(arg: str):
 
 
 def _status(agent, store):
-    import config, model, tokenizer
+    import config, model, tokenizer, os
     lines = [
         f"model        : {model.get_short_name()}",
+        f"workspace    : {os.getcwd()}",
         f"thinking     : {agent.thinking_mode}",
         f"plan mode    : {'ON' if agent.plan_mode else 'OFF'}",
         f"auto-approve : {'ON' if agent.auto_approve else 'OFF'}",
