@@ -10,3 +10,5 @@ mistakes.json
 venv/
 dist/
 build/graphify-out/
+
+graphify-out/
